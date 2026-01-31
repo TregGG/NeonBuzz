@@ -24,7 +24,8 @@ public:
         EDGES,
         CONTOURS,
         BRUSH_STROKES,
-        COMBINED
+        COMBINED,
+        NEON
     };
 
     void setDisplayMode(DisplayMode mode) { displayMode = mode; }

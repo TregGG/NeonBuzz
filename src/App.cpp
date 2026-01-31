@@ -168,8 +168,8 @@ void App::processFrame() {
 
         // Display mode selection
         static int displayMode = 3; // BRUSH_STROKES
-        const char* modes[] = {"Original", "Edges", "Contours", "Brush Strokes", "Combined"};
-        if (ImGui::Combo("Display Mode", &displayMode, modes, 5)) {
+        const char* modes[] = {"Original", "Edges", "Contours", "Brush Strokes", "Combined", "Neon"};
+        if (ImGui::Combo("Display Mode", &displayMode, modes, 6)) {
             renderer->setDisplayMode(static_cast<Renderer::DisplayMode>(displayMode));
         }
 
@@ -196,6 +196,86 @@ void App::processFrame() {
         if (ImGui::SliderFloat("Min Contour Area", &ma, 1, 1000)) {
             imageProcessor->setContourMinArea(ma);
             imageProcessor->processImage();
+        }
+
+        float mcl = static_cast<float>(imageProcessor->getMinContourLength());
+        if (ImGui::SliderFloat("Min Contour Length", &mcl, 1, 200)) {
+            imageProcessor->setMinContourLength(mcl);
+            imageProcessor->processImage();
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Noise Reduction");
+
+        int blurStrength = imageProcessor->getBlurStrength();
+        if (ImGui::SliderInt("Blur Strength", &blurStrength, 1, 21)) {
+            imageProcessor->setBlurStrength(blurStrength);
+            imageProcessor->processImage();
+        }
+
+        bool useBilateral = imageProcessor->getBilateralFilter();
+        if (ImGui::Checkbox("Bilateral Filter", &useBilateral)) {
+            imageProcessor->setBilateralFilter(useBilateral);
+            imageProcessor->processImage();
+        }
+
+        if (useBilateral) {
+            int bilateralD = imageProcessor->getBilateralD();
+            if (ImGui::SliderInt("Bilateral Diameter", &bilateralD, 3, 21)) {
+                imageProcessor->setBilateralD(bilateralD);
+                imageProcessor->processImage();
+            }
+
+            float sigmaColor = static_cast<float>(imageProcessor->getBilateralSigmaColor());
+            if (ImGui::SliderFloat("Sigma Color", &sigmaColor, 10, 200)) {
+                imageProcessor->setBilateralSigmaColor(sigmaColor);
+                imageProcessor->processImage();
+            }
+
+            float sigmaSpace = static_cast<float>(imageProcessor->getBilateralSigmaSpace());
+            if (ImGui::SliderFloat("Sigma Space", &sigmaSpace, 10, 200)) {
+                imageProcessor->setBilateralSigmaSpace(sigmaSpace);
+                imageProcessor->processImage();
+            }
+        }
+
+        int morphSize = imageProcessor->getMorphologySize();
+        if (ImGui::SliderInt("Morphology Size", &morphSize, 0, 7)) {
+            imageProcessor->setMorphologySize(morphSize);
+            imageProcessor->processImage();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Cleanup small noise with morphological ops (0=off)");
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Edge Smoothing");
+
+        int edgeDilation = imageProcessor->getEdgeDilation();
+        if (ImGui::SliderInt("Edge Dilation", &edgeDilation, 0, 7)) {
+            imageProcessor->setEdgeDilation(edgeDilation);
+            imageProcessor->processImage();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Connect fragmented edges (hair, fine details)");
+        }
+
+        int edgeSmoothing = imageProcessor->getEdgeSmoothing();
+        if (ImGui::SliderInt("Edge Blur", &edgeSmoothing, 0, 11)) {
+            imageProcessor->setEdgeSmoothing(edgeSmoothing);
+            imageProcessor->processImage();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Smooth jagged edges (0=off)");
+        }
+
+        float contourSmooth = static_cast<float>(imageProcessor->getContourSmoothing());
+        if (ImGui::SliderFloat("Contour Smoothing", &contourSmooth, 0.0f, 10.0f)) {
+            imageProcessor->setContourSmoothing(contourSmooth);
+            imageProcessor->processImage();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Simplify contour curves (0=off)");
         }
 
         ImGui::Separator();
@@ -227,6 +307,39 @@ void App::processFrame() {
         }
 
         ImGui::Separator();
+        ImGui::Text("Neon Effect Settings");
+
+        static float neonCenterColor[3] = {1.0f, 0.0f, 1.0f};  // Magenta
+        if (ImGui::ColorEdit3("Neon Center", neonCenterColor)) {
+            imageProcessor->setNeonCenterColor(neonCenterColor[0], neonCenterColor[1], neonCenterColor[2]);
+            imageProcessor->processImage();
+        }
+
+        static float neonOtherColor[3] = {0.0f, 1.0f, 1.0f};   // Cyan
+        if (ImGui::ColorEdit3("Neon Other", neonOtherColor)) {
+            imageProcessor->setNeonOtherColor(neonOtherColor[0], neonOtherColor[1], neonOtherColor[2]);
+            imageProcessor->processImage();
+        }
+
+        static float neonEdgeColor[3] = {1.0f, 0.0f, 0.0f};    // Red
+        if (ImGui::ColorEdit3("Neon Edges", neonEdgeColor)) {
+            imageProcessor->setNeonEdgeColor(neonEdgeColor[0], neonEdgeColor[1], neonEdgeColor[2]);
+            imageProcessor->processImage();
+        }
+
+        int glowStrength = imageProcessor->getNeonGlowStrength();
+        if (ImGui::SliderInt("Glow Layers", &glowStrength, 1, 5)) {
+            imageProcessor->setNeonGlowStrength(glowStrength);
+            imageProcessor->processImage();
+        }
+
+        int glowSize = imageProcessor->getNeonGlowSize();
+        if (ImGui::SliderInt("Glow Size", &glowSize, 5, 51)) {
+            imageProcessor->setNeonGlowSize(glowSize);
+            imageProcessor->processImage();
+        }
+
+        ImGui::Separator();
         ImGui::Text("Contours found: %zu", imageProcessor->getContours().size());
     }
 
@@ -247,6 +360,8 @@ void App::processFrame() {
             renderer->renderContours(imageProcessor->getOriginalImage(), imageProcessor->getContours());
         } else if (mode == Renderer::BRUSH_STROKES) {
             renderer->renderImage(imageProcessor->getBrushStrokeImage());
+        } else if (mode == Renderer::NEON) {
+            renderer->renderImage(imageProcessor->getNeonImage());
         } else { // COMBINED
             cv::Mat combined = imageProcessor->getBrushStrokeImage().clone();
             cv::drawContours(combined, imageProcessor->getContours(), -1, cv::Scalar(255, 255, 255), 1);

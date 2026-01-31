@@ -1,118 +1,262 @@
 # Image Contour Renderer
 
-An OpenGL-based application that loads images, detects edges and contours, and renders them with customizable strokes.
+<p align="center">
+  <img src="assets/preview.png" alt="Image Contour Renderer Preview" width="800">
+</p>
 
-## Features
+An OpenGL-based real-time image processing application that transforms photographs into artistic contour and brush stroke renderings. Features interactive parameter adjustment, multiple display modes, and advanced noise reduction algorithms.
 
-- **Image Loading**: Load any image format (PNG, JPG, etc.)
-- **Edge Detection**: Canny edge detection with adjustable thresholds
-- **Contour Detection**: Automatic contour extraction from edges
-- **Multiple Display Modes**: Original, Edges, Contours, and Combined views
-- **Real-time Parameter Adjustment**: Modify edge detection and rendering parameters in real-time
-- **Customizable Strokes**: Adjust stroke color and width
-- **ImGui Interface**: Easy-to-use GUI for all controls
+## ✨ Features
 
-## Requirements
+- **Real-time Edge Detection** - Canny edge detection with adjustable thresholds
+- **Contour Extraction** - Automatic contour detection with area and length filtering
+- **Artistic Brush Strokes** - Stylized brush stroke rendering that follows edge directions
+- **Multiple Display Modes**:
+  - Original Image
+  - Edge Detection View
+  - Contour Overlay
+  - Brush Strokes
+  - Combined View
+- **Advanced Noise Reduction**:
+  - Gaussian Blur
+  - Bilateral Filter (edge-preserving)
+  - Morphological Operations
+- **Edge Smoothing**:
+  - Edge Dilation with Zhang-Suen Thinning
+  - Gaussian Edge Smoothing
+  - Contour Polygon Approximation
+- **Interactive UI** - Real-time parameter adjustment via ImGui
 
-- C++17 or later
-- CMake 3.20+
-- OpenGL 4.1+
-- OpenCV 4.0+
-- GLFW3
-- GLEW
+## 🖼️ Display Modes
 
-## Installation
+| Mode | Description |
+|------|-------------|
+| **Original** | Shows the loaded image as-is |
+| **Edges** | Displays Canny edge detection result |
+| **Contours** | Shows detected contours overlaid on the image |
+| **Brush Strokes** | Artistic brush stroke rendering on black background |
+| **Combined** | Brush strokes with contour lines overlaid |
 
-### Ubuntu/Debian
+## 🛠️ Requirements
+
+### Dependencies
+
+- **OpenGL** 4.1+
+- **GLFW** 3.x
+- **GLEW** 2.x
+- **OpenCV** 4.x (with contrib modules for `ximgproc`)
+- **CMake** 3.20+
+- **C++17** compatible compiler
+
+### Installing Dependencies
+
+#### Ubuntu/Debian
 
 ```bash
-sudo apt-get install libglfw3-dev libglew-dev libopencv-dev
+sudo apt update
+sudo apt install build-essential cmake libglfw3-dev libglew-dev libopencv-dev libopencv-contrib-dev
 ```
 
-### macOS
+#### Fedora
 
 ```bash
-brew install glfw3 glew opencv
+sudo dnf install cmake glfw-devel glew-devel opencv-devel opencv-contrib
 ```
 
-### Windows
-
-Download and install:
-- [GLFW](https://www.glfw.org/download.html)
-- [GLEW](http://glew.sourceforge.net/)
-- [OpenCV](https://opencv.org/releases/)
-
-## Building
+#### Arch Linux
 
 ```bash
-cd /path/to/Imagecontorrender
-mkdir -p build && cd build
-cmake ..
-make
+sudo pacman -S cmake glfw glew opencv
 ```
 
-## Running
+#### macOS (Homebrew)
 
 ```bash
-./ImageContourRenderer [image_path]
+brew install cmake glfw glew opencv
 ```
 
-Or run without arguments and use the GUI to load an image.
+## 🚀 Building
 
-## Usage
+### Clone the Repository
 
-1. **Load Image**: Enter the path to an image file in the "Image Path" field and click "Load Image"
-2. **Select Display Mode**: Choose between Original, Edges, Contours, or Combined view
-3. **Adjust Edge Detection**:
-   - Canny T1: Lower threshold for edge detection (10-200)
-   - Canny T2: Upper threshold for edge detection (50-400)
-   - Min Contour Area: Filter out small contours (1-1000)
-4. **Customize Strokes**:
-   - Change the stroke color
-   - Adjust the stroke width
+```bash
+git clone https://github.com/yourusername/ImageContourRenderer.git
+cd ImageContourRenderer
+```
 
-## Controls
+### Build with CMake
 
-- **Display Mode Combo**: Switch between visualization modes
-- **Real-time Sliders**: Adjust parameters and see results immediately
-- **Color Picker**: Set custom stroke colors
+```bash
+# Configure
+cmake -B build -S .
 
-## Project Structure
+# Compile
+make -C build -j$(nproc)
+```
+
+### VS Code Tasks
+
+The project includes VS Code tasks for convenient building:
+
+- **Build** (`Ctrl+Shift+B`): Runs CMake configuration
+- **Compile**: Runs make to compile the project
+- **Build & Run**: Compiles and launches the application
+
+## 📖 Usage
+
+### Basic Usage
+
+```bash
+# Run without arguments (use file browser to load images)
+./build/ImageContourRenderer
+
+# Load an image directly
+./build/ImageContourRenderer path/to/your/image.jpg
+```
+
+### Supported Image Formats
+
+- PNG
+- JPEG
+- BMP
+- GIF
+- TIFF
+- WebP
+
+### Controls
+
+1. **Load Image**: Click "Browse..." or enter a path and click "Load"
+2. **Display Mode**: Select from the dropdown to switch views
+3. **Parameters**: Adjust sliders to modify processing in real-time
+4. **Viewport**: View the processed image in the main window
+
+## ⚙️ Parameter Guide
+
+### Edge Detection Parameters
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| **Canny T1** | 10-200 | Lower threshold for edge detection |
+| **Canny T2** | 50-400 | Upper threshold for edge detection |
+| **Min Contour Area** | 1-1000 | Minimum contour area in pixels² |
+| **Min Contour Length** | 1-200 | Minimum contour perimeter in pixels |
+
+### Noise Reduction
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| **Blur Strength** | 1-21 | Gaussian blur kernel size (odd values) |
+| **Bilateral Filter** | On/Off | Toggle edge-preserving blur |
+| **Bilateral Diameter** | 3-21 | Neighborhood diameter for bilateral filter |
+| **Sigma Color** | 10-200 | Color space sigma for bilateral filter |
+| **Sigma Space** | 10-200 | Coordinate space sigma for bilateral filter |
+| **Morphology Size** | 0-7 | Cleanup kernel size (0=disabled) |
+
+### Edge Smoothing
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| **Edge Dilation** | 0-7 | Connect fragmented edges (0=disabled) |
+| **Edge Blur** | 0-11 | Smooth jagged edges (0=disabled) |
+| **Contour Smoothing** | 0-10 | Simplify contour curves (0=disabled) |
+
+### Brush Stroke Settings
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| **Brush Size** | 1-15 | Base stroke thickness |
+| **Brush Density** | 1-20 | Controls secondary stroke frequency |
+
+### Stroke Settings
+
+| Parameter | Description |
+|-----------|-------------|
+| **Stroke Color** | RGBA color picker for contour lines |
+| **Stroke Width** | Line width for contour rendering |
+
+## 📐 Project Structure
 
 ```
+ImageContourRenderer/
 ├── CMakeLists.txt          # Build configuration
+├── README.md               # This file
+├── Working.md              # Detailed technical documentation
+├── setup.sh                # Setup script
+├── imgui.ini               # ImGui layout settings
+├── assets/                 # Asset files
 ├── include/
-│   ├── App.h               # Main application class
-│   ├── ImageProcessor.h    # Image processing with OpenCV
-│   └── Renderer.h          # OpenGL rendering
+│   ├── App.h              # Main application class
+│   ├── ImageProcessor.h   # Image processing class
+│   └── Renderer.h         # OpenGL rendering class
 ├── src/
-│   ├── main.cpp            # Entry point
-│   ├── App.cpp             # Application implementation
-│   ├── ImageProcessor.cpp  # Image processing implementation
-│   └── Renderer.cpp        # OpenGL rendering implementation
-└── assets/                 # Sample images (add your own)
+│   ├── main.cpp           # Entry point
+│   ├── App.cpp            # Application implementation
+│   ├── ImageProcessor.cpp # Image processing implementation
+│   └── Renderer.cpp       # Rendering implementation
+├── third_party/
+│   ├── imgui/             # Dear ImGui library
+│   └── tinyfiledialogs/   # Native file dialog library
+└── build/                  # Build output directory
 ```
 
-## Technical Details
+## 🎨 How It Works
 
-### Image Processing
-- **Color Conversion**: BGR to RGB conversion for OpenGL compatibility
-- **Resizing**: Automatic downscaling for performance (max 1024x1024)
-- **Edge Detection**: Canny edge detection with Gaussian blur preprocessing
-- **Contour Detection**: OpenCV contour detection with area filtering
+1. **Image Loading**: Images are loaded via OpenCV and scaled to max 1024px for performance
+2. **Edge Detection**: Canny algorithm with configurable thresholds detects edges
+3. **Noise Reduction**: Gaussian or bilateral blur smooths noise before edge detection
+4. **Contour Finding**: OpenCV extracts contours from edge map, filtered by area/length
+5. **Brush Strokes**: Artistic strokes are drawn following edge directions with randomized parameters
+6. **Rendering**: OpenGL renders the result as a textured quad via ImGui viewport
 
-### Rendering
-- **OpenGL Core Profile**: 4.1+ for modern GPU rendering
-- **Texture-based Display**: Images rendered as textured quads
-- **Stroke Rendering**: Contours drawn using OpenCV's drawContours
+For complete technical details, see [Working.md](Working.md).
 
-### GUI
-- ImGui for intuitive parameter control
-- Real-time feedback on processing results
-- Display statistics (image dimensions, contour count)
+## 🧪 Tips for Best Results
 
-## Notes
+### For Clean Line Art
 
-- Large images are automatically resized to 1024x1024 for performance
-- Edge detection parameters are tuned for general-purpose use; adjust for specific image types
-- Stroke width is in pixels and may need adjustment based on image size
+- Increase **Canny T1** and **Canny T2** to reduce noise
+- Enable **Bilateral Filter** to preserve edges while smoothing
+- Set **Morphology Size** to 2-3 to clean up small artifacts
+- Increase **Min Contour Area** and **Min Contour Length** to filter small noise
+
+### For Smooth Hair/Fine Details
+
+- Set **Edge Dilation** to 2-3 to connect fragmented strands
+- Use **Edge Blur** at 3-5 to smooth jagged edges
+- Enable **Contour Smoothing** at 1-2 for cleaner curves
+
+### For Sketchy Effect
+
+- Reduce **Canny T1** for more edges
+- Increase **Brush Size** for bolder strokes
+- Lower **Brush Density** for more texture
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Dear ImGui](https://github.com/ocornut/imgui) - Immediate mode GUI library
+- [OpenCV](https://opencv.org/) - Computer vision library
+- [GLFW](https://www.glfw.org/) - Window and input library
+- [GLEW](http://glew.sourceforge.net/) - OpenGL extension loading
+- [tinyfiledialogs](https://sourceforge.net/projects/tinyfiledialogs/) - Native file dialogs
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📧 Contact
+
+For questions or feedback, please open an issue on GitHub.
+
+---
+
+Made with ❤️ and OpenGL
