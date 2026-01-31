@@ -1,0 +1,50 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-B",
+                "build",
+                "-S",
+                "."
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Compile",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "-C",
+                "build",
+                "-j$(nproc)"
+            ],
+            "dependsOn": "Build",
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build & Run",
+            "type": "shell",
+            "command": "./build/ImageContourRenderer",
+            "dependsOn": "Compile",
+            "group": {
+                "kind": "test"
+            },
+            "isBackground": false
+        }
+    ]
+}
