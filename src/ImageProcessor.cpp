@@ -1,7 +1,10 @@
 #include "ImageProcessor.h"
 #include <opencv2/ximgproc.hpp>
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <random>
+#include <unordered_map>
 
 ImageProcessor::ImageProcessor() {
 }
@@ -337,128 +340,272 @@ void ImageProcessor::createNeonEffect() {
         return;
     }
 
-    // Create black background
     neonImage = cv::Mat::zeros(originalImage.size(), CV_8UC3);
-    
-    // Vibrant neon color palette (BGR format)
-    std::vector<cv::Scalar> neonPalette = {
-        cv::Scalar(255, 0, 255),    // Magenta
-        cv::Scalar(255, 255, 0),    // Cyan
-        cv::Scalar(0, 255, 0),      // Green
-        cv::Scalar(0, 165, 255),    // Orange
-        cv::Scalar(255, 0, 0),      // Blue
-        cv::Scalar(0, 255, 255),    // Yellow
-        cv::Scalar(255, 0, 127),    // Pink/Purple
-        cv::Scalar(0, 255, 127),    // Spring Green
-        cv::Scalar(255, 127, 0),    // Deep Sky Blue
-        cv::Scalar(127, 0, 255),    // Rose
-        cv::Scalar(0, 127, 255),    // Dark Orange
-        cv::Scalar(255, 255, 127),  // Light Cyan
+
+    const std::vector<cv::Scalar> neonPalette = {
+        cv::Scalar(255, 0, 255),   // Magenta
+        cv::Scalar(255, 255, 0),   // Cyan
+        cv::Scalar(0, 255, 0),     // Green
+        cv::Scalar(0, 165, 255),   // Orange
+        cv::Scalar(255, 0, 0),     // Blue
+        cv::Scalar(0, 255, 255),   // Yellow
+        cv::Scalar(255, 0, 127),   // Pink/Purple
+        cv::Scalar(0, 255, 127),   // Spring Green
+        cv::Scalar(255, 127, 0),   // Deep Sky Blue
+        cv::Scalar(127, 0, 255),   // Rose
+        cv::Scalar(0, 127, 255),   // Dark Orange
+        cv::Scalar(255, 255, 127), // Light Cyan
     };
-    
-    // Create a mask with all contours drawn thick, then find connected components
-    // This groups nearby contours into the same "object"
-    cv::Mat objectMask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
-    for (size_t i = 0; i < contours.size(); i++) {
-        cv::drawContours(objectMask, contours, static_cast<int>(i), cv::Scalar(255), 8);
-    }
-    
-    // Dilate to connect nearby contours into single objects
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(25, 25));
-    cv::dilate(objectMask, objectMask, kernel);
-    
-    // Find connected components (each component is an "object")
-    cv::Mat labels, stats, centroids;
-    int numLabels = cv::connectedComponentsWithStats(objectMask, labels, stats, centroids);
-    
-    // Assign each contour to an object based on which component it overlaps with
-    std::vector<int> contourToObject(contours.size(), 0);
-    for (size_t i = 0; i < contours.size(); i++) {
-        // Sample a point from the contour to determine which object it belongs to
-        if (contours[i].size() > 0) {
-            cv::Point pt = contours[i][0];
-            if (pt.x >= 0 && pt.x < labels.cols && pt.y >= 0 && pt.y < labels.rows) {
-                contourToObject[i] = labels.at<int>(pt.y, pt.x);
-            }
-        }
-    }
-    
-    // Calculate object sizes (sum of contour areas per object)
-    std::vector<double> objectSizes(numLabels, 0);
-    for (size_t i = 0; i < contours.size(); i++) {
-        int objId = contourToObject[i];
-        objectSizes[objId] += cv::contourArea(contours[i]);
-    }
-    
-    // Sort objects by size and assign colors (largest objects get first colors)
-    std::vector<std::pair<double, int>> objectOrder;
-    for (int i = 1; i < numLabels; i++) {  // Skip label 0 (background)
-        objectOrder.push_back({objectSizes[i], i});
-    }
-    std::sort(objectOrder.begin(), objectOrder.end(),
-              [](const auto& a, const auto& b) { return a.first > b.first; });
-    
-    // Map object IDs to colors
-    std::vector<cv::Scalar> objectColors(numLabels, neonEdgeColor);
-    for (size_t i = 0; i < objectOrder.size(); i++) {
-        int objId = objectOrder[i].second;
-        objectColors[objId] = neonPalette[i % neonPalette.size()];
-    }
-    
-    // Create a mask of all contour areas to exclude from edge drawing
-    cv::Mat contourMask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
-    cv::drawContours(contourMask, contours, -1, cv::Scalar(255), 3);
-    cv::dilate(contourMask, contourMask, cv::Mat(), cv::Point(-1,-1), 2);
-    
-    // Draw background edges with the edge color
+
     cv::Mat edgeLayer = cv::Mat::zeros(originalImage.size(), CV_8UC3);
-    for (int y = 0; y < edgeImage.rows; y++) {
-        for (int x = 0; x < edgeImage.cols; x++) {
-            if (edgeImage.at<uchar>(y, x) > 128 && contourMask.at<uchar>(y, x) == 0) {
-                edgeLayer.at<cv::Vec3b>(y, x) = cv::Vec3b(
-                    static_cast<uchar>(neonEdgeColor[0]),
-                    static_cast<uchar>(neonEdgeColor[1]),
-                    static_cast<uchar>(neonEdgeColor[2])
-                );
-            }
-        }
-    }
-    
-    // Create layer for all contours with object-based colors
     cv::Mat contourLayer = cv::Mat::zeros(originalImage.size(), CV_8UC3);
-    
-    // Draw each contour with its object's color
-    for (size_t i = 0; i < contours.size(); i++) {
-        int objId = contourToObject[i];
-        cv::Scalar color = objectColors[objId];
-        
-        // Find if this is a large object (top 5)
-        bool isLargeObject = false;
-        for (size_t j = 0; j < std::min(size_t(5), objectOrder.size()); j++) {
-            if (objectOrder[j].second == objId) {
-                isLargeObject = true;
-                break;
+    cv::Mat whiteCore = cv::Mat::zeros(originalImage.size(), CV_8UC3);
+    bool hasWhiteCore = false;
+
+    auto hsvToBgr = [](float hDeg, float s, float v) -> cv::Scalar {
+        hDeg = std::fmod(hDeg, 360.0f);
+        if (hDeg < 0.0f) hDeg += 360.0f;
+        s = std::clamp(s, 0.0f, 1.0f);
+        v = std::clamp(v, 0.0f, 1.0f);
+
+        float c = v * s;
+        float x = c * (1.0f - std::fabs(std::fmod(hDeg / 60.0f, 2.0f) - 1.0f));
+        float m = v - c;
+
+        float r1 = 0.0f, g1 = 0.0f, b1 = 0.0f;
+        if (hDeg < 60.0f) {
+            r1 = c;
+            g1 = x;
+            b1 = 0.0f;
+        } else if (hDeg < 120.0f) {
+            r1 = x;
+            g1 = c;
+            b1 = 0.0f;
+        } else if (hDeg < 180.0f) {
+            r1 = 0.0f;
+            g1 = c;
+            b1 = x;
+        } else if (hDeg < 240.0f) {
+            r1 = 0.0f;
+            g1 = x;
+            b1 = c;
+        } else if (hDeg < 300.0f) {
+            r1 = x;
+            g1 = 0.0f;
+            b1 = c;
+        } else {
+            r1 = c;
+            g1 = 0.0f;
+            b1 = x;
+        }
+
+        uint8_t b = static_cast<uint8_t>(std::round((b1 + m) * 255.0f));
+        uint8_t g = static_cast<uint8_t>(std::round((g1 + m) * 255.0f));
+        uint8_t r = static_cast<uint8_t>(std::round((r1 + m) * 255.0f));
+        return cv::Scalar(b, g, r);
+    };
+
+    if (neonPerContour) {
+        // Background edges = all edges
+        edgeLayer.setTo(neonEdgeColor, edgeImage);
+
+        std::vector<int> clusterId(contours.size(), 0);
+        const int n = static_cast<int>(contours.size());
+        if (neonKMeansEnabled && n >= 2) {
+            int k = std::clamp(neonKMeansK, 1, n);
+
+            cv::Mat samples(n, 2, CV_32F);
+            std::vector<cv::Point2f> centroid(n);
+            for (int i = 0; i < n; ++i) {
+                cv::Point2f c(0.0f, 0.0f);
+                if (!contours[i].empty()) {
+                    cv::Moments m = cv::moments(contours[i]);
+                    if (std::fabs(m.m00) > 1e-5) {
+                        c.x = static_cast<float>(m.m10 / m.m00);
+                        c.y = static_cast<float>(m.m01 / m.m00);
+                    } else {
+                        for (const auto& p : contours[i]) {
+                            c.x += static_cast<float>(p.x);
+                            c.y += static_cast<float>(p.y);
+                        }
+                        c.x /= static_cast<float>(contours[i].size());
+                        c.y /= static_cast<float>(contours[i].size());
+                    }
+                }
+                centroid[i] = c;
+                samples.at<float>(i, 0) = c.x;
+                samples.at<float>(i, 1) = c.y;
+            }
+
+            cv::Mat labels;
+            cv::Mat centers;
+            cv::kmeans(samples, k, labels,
+                       cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 20, 1.0),
+                       3, cv::KMEANS_PP_CENTERS, centers);
+
+            const float nearPx = std::max(0.0f, neonKMeansNearDistancePx);
+            const float nearPx2 = nearPx * nearPx;
+            int nextId = k;
+            for (int i = 0; i < n; ++i) {
+                int lbl = labels.at<int>(i, 0);
+                float cx = centers.at<float>(lbl, 0);
+                float cy = centers.at<float>(lbl, 1);
+                float dx = centroid[i].x - cx;
+                float dy = centroid[i].y - cy;
+                float d2 = dx * dx + dy * dy;
+
+                // Only keep grouping if it's truly nearby; otherwise isolate it.
+                if (nearPx > 0.0f && d2 > nearPx2) {
+                    clusterId[i] = nextId++;
+                } else {
+                    clusterId[i] = lbl;
+                }
+            }
+
+            // Compress ids to 0..M-1
+            std::unordered_map<int, int> remap;
+            remap.reserve(static_cast<size_t>(n));
+            int next = 0;
+            for (int i = 0; i < n; ++i) {
+                auto it = remap.find(clusterId[i]);
+                if (it == remap.end()) {
+                    remap.emplace(clusterId[i], next);
+                    clusterId[i] = next;
+                    next++;
+                } else {
+                    clusterId[i] = it->second;
+                }
+            }
+        } else {
+            for (int i = 0; i < n; ++i) {
+                clusterId[i] = i;
             }
         }
-        
-        int thickness = isLargeObject ? 3 : 2;
-        cv::drawContours(contourLayer, contours, static_cast<int>(i), 
-                        color, thickness, cv::LINE_AA);
+
+        for (size_t i = 0; i < contours.size(); ++i) {
+            float hue = std::fmod(137.508f * static_cast<float>(clusterId[i]), 360.0f);
+            cv::Scalar color = hsvToBgr(hue, 0.95f, 1.0f);
+            cv::drawContours(contourLayer, contours, static_cast<int>(i), color, 3, cv::LINE_AA);
+        }
+    } else {
+        // Object grouping mode (keeps existing look, but now uses your adjustable params)
+        const int imgArea = originalImage.cols * originalImage.rows;
+        const int minObjectAreaPx = std::max(100, static_cast<int>(neonMinObjectAreaRatio * static_cast<float>(imgArea)));
+        const int maxObjects = std::max(1, neonMaxObjects);
+
+        cv::Mat objectMask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
+        for (size_t i = 0; i < contours.size(); i++) {
+            cv::drawContours(objectMask, contours, static_cast<int>(i), cv::Scalar(255), 2, cv::LINE_AA);
+        }
+
+        int joinSize = std::max(3, neonJoinSize);
+        if (joinSize % 2 == 0) joinSize++;
+        cv::Mat joinKernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(joinSize, joinSize));
+        cv::morphologyEx(objectMask, objectMask, cv::MORPH_CLOSE, joinKernel);
+
+        cv::Mat labels, stats, centroids;
+        const int numLabels = cv::connectedComponentsWithStats(objectMask, labels, stats, centroids, 8, CV_32S);
+
+        // Pick top-N objects by connected-component area.
+        const float maxObjectAreaRatio = 0.60f;
+        std::vector<std::pair<int, int>> candidates; // (areaPx, label)
+        for (int label = 1; label < numLabels; ++label) {
+            const int areaPx = stats.at<int>(label, cv::CC_STAT_AREA);
+            if (areaPx < minObjectAreaPx) continue;
+            if (areaPx > static_cast<int>(maxObjectAreaRatio * imgArea)) continue;
+            candidates.push_back({areaPx, label});
+        }
+        std::sort(candidates.begin(), candidates.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+        if (static_cast<int>(candidates.size()) > maxObjects) {
+            candidates.resize(maxObjects);
+        }
+
+        std::vector<uint8_t> selected(numLabels, 0);
+        std::vector<cv::Scalar> objectColors(numLabels, neonEdgeColor);
+        for (size_t i = 0; i < candidates.size(); ++i) {
+            int lbl = candidates[i].second;
+            selected[lbl] = 1;
+            objectColors[lbl] = neonPalette[i % neonPalette.size()];
+        }
+
+        cv::Mat selectedMask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
+        for (int lbl = 1; lbl < numLabels; ++lbl) {
+            if (!selected[lbl]) continue;
+            cv::Mat cmp;
+            cv::compare(labels, lbl, cmp, cv::CMP_EQ);
+            cv::bitwise_or(selectedMask, cmp, selectedMask);
+        }
+
+        // Background edges: edges not in selected objects.
+        for (int y = 0; y < edgeImage.rows; ++y) {
+            const uchar* eRow = edgeImage.ptr<uchar>(y);
+            const uchar* sRow = selectedMask.ptr<uchar>(y);
+            cv::Vec3b* outRow = edgeLayer.ptr<cv::Vec3b>(y);
+            for (int x = 0; x < edgeImage.cols; ++x) {
+                if (eRow[x] > 128 && sRow[x] == 0) {
+                    outRow[x] = cv::Vec3b(
+                        static_cast<uchar>(neonEdgeColor[0]),
+                        static_cast<uchar>(neonEdgeColor[1]),
+                        static_cast<uchar>(neonEdgeColor[2])
+                    );
+                }
+            }
+        }
+
+        // Assign contour -> label by sampling points.
+        std::vector<int> contourToObject(contours.size(), 0);
+        for (size_t i = 0; i < contours.size(); ++i) {
+            const auto& c = contours[i];
+            if (c.empty()) continue;
+            const int sampleCount = std::min<int>(24, static_cast<int>(c.size()));
+            const int step = std::max(1, static_cast<int>(c.size()) / sampleCount);
+            std::vector<int> hits(numLabels, 0);
+            for (int kk = 0; kk < sampleCount; ++kk) {
+                const cv::Point pt = c[kk * step];
+                if (pt.x < 0 || pt.x >= labels.cols || pt.y < 0 || pt.y >= labels.rows) continue;
+                const int lbl = labels.at<int>(pt.y, pt.x);
+                if (lbl >= 0 && lbl < numLabels) hits[lbl]++;
+            }
+            int bestLbl = 0;
+            int bestHits = 0;
+            for (int lbl = 1; lbl < numLabels; ++lbl) {
+                if (hits[lbl] > bestHits) {
+                    bestHits = hits[lbl];
+                    bestLbl = lbl;
+                }
+            }
+            if (bestLbl > 0 && selected[bestLbl]) {
+                contourToObject[i] = bestLbl;
+                cv::drawContours(contourLayer, contours, static_cast<int>(i), objectColors[bestLbl], 3, cv::LINE_AA);
+            }
+        }
+
+        // White core for the largest 3 selected objects
+        const int coreObjects = std::min<int>(3, static_cast<int>(candidates.size()));
+        std::vector<uint8_t> coreLabels(numLabels, 0);
+        for (int i = 0; i < coreObjects; ++i) {
+            coreLabels[candidates[i].second] = 1;
+        }
+        for (size_t i = 0; i < contours.size(); ++i) {
+            const int objId = contourToObject[i];
+            if (objId > 0 && objId < numLabels && coreLabels[objId]) {
+                cv::drawContours(whiteCore, contours, static_cast<int>(i), cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+                hasWhiteCore = true;
+            }
+        }
     }
-    
-    // Create glow effect
+
+    // Glow + composite
     cv::Mat glowEdge, glowContour;
-    
-    // Multiple glow passes for stronger effect
-    for (int pass = 0; pass < neonGlowStrength; pass++) {
+    const int glowStrength = std::max(1, neonGlowStrength);
+    for (int pass = 0; pass < glowStrength; ++pass) {
         int blurSize = neonGlowSize + pass * 10;
         if (blurSize % 2 == 0) blurSize++;
-        
+
         cv::Mat tempGlowEdge, tempGlowContour;
-        
         cv::GaussianBlur(edgeLayer, tempGlowEdge, cv::Size(blurSize, blurSize), 0);
         cv::GaussianBlur(contourLayer, tempGlowContour, cv::Size(blurSize, blurSize), 0);
-        
+
         if (pass == 0) {
             glowEdge = tempGlowEdge;
             glowContour = tempGlowContour;
@@ -467,38 +614,19 @@ void ImageProcessor::createNeonEffect() {
             cv::addWeighted(glowContour, 1.0, tempGlowContour, 0.5, 0, glowContour);
         }
     }
-    
-    // Combine layers: glow first, then sharp on top
-    // Edge glow (dimmer, in background)
+
     cv::addWeighted(neonImage, 1.0, glowEdge, 0.6, 0, neonImage);
-    
-    // Contour glow (brighter)
     cv::addWeighted(neonImage, 1.0, glowContour, 1.2, 0, neonImage);
-    
-    // Sharp edge layer (dim)
+
     cv::Mat edgeLayerDim;
     cv::addWeighted(edgeLayer, 0.5, cv::Mat::zeros(edgeLayer.size(), edgeLayer.type()), 0, 0, edgeLayerDim);
     cv::add(neonImage, edgeLayerDim, neonImage);
-    
-    // Sharp contour layer
     cv::add(neonImage, contourLayer, neonImage);
-    
-    // Add white core to the largest objects for intense neon effect
-    cv::Mat whiteCore = cv::Mat::zeros(originalImage.size(), CV_8UC3);
-    for (size_t i = 0; i < contours.size(); i++) {
-        int objId = contourToObject[i];
-        // Check if this contour belongs to a top-5 object
-        for (size_t j = 0; j < std::min(size_t(5), objectOrder.size()); j++) {
-            if (objectOrder[j].second == objId) {
-                cv::drawContours(whiteCore, contours, static_cast<int>(i), 
-                                cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
-                break;
-            }
-        }
+
+    if (hasWhiteCore) {
+        cv::addWeighted(neonImage, 1.0, whiteCore, 0.5, 0, neonImage);
     }
-    cv::addWeighted(neonImage, 1.0, whiteCore, 0.5, 0, neonImage);
-    
-    // Convert BGR to RGB for OpenGL
+
     cv::cvtColor(neonImage, neonImage, cv::COLOR_BGR2RGB);
 }
 

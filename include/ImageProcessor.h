@@ -51,12 +51,26 @@ public:
     void setNeonEdgeColor(float r, float g, float b) { neonEdgeColor = cv::Scalar(b*255, g*255, r*255); }
     void setNeonGlowStrength(int val) { neonGlowStrength = val; }
     void setNeonGlowSize(int val) { neonGlowSize = val; }
+    void setNeonMaxObjects(int val) { neonMaxObjects = val; }
+    void setNeonMinObjectAreaRatio(float val) { neonMinObjectAreaRatio = val; }
+    void setNeonJoinSize(int val) { neonJoinSize = val; }
+    void setNeonPerContour(bool val) { neonPerContour = val; }
+    void setNeonKMeansEnabled(bool val) { neonKMeansEnabled = val; }
+    void setNeonKMeansK(int val) { neonKMeansK = val; }
+    void setNeonKMeansNearDistancePx(float val) { neonKMeansNearDistancePx = val; }
     
     cv::Scalar getNeonCenterColor() const { return neonCenterColor; }
     cv::Scalar getNeonOtherColor() const { return neonOtherColor; }
     cv::Scalar getNeonEdgeColor() const { return neonEdgeColor; }
     int getNeonGlowStrength() const { return neonGlowStrength; }
     int getNeonGlowSize() const { return neonGlowSize; }
+    int getNeonMaxObjects() const { return neonMaxObjects; }
+    float getNeonMinObjectAreaRatio() const { return neonMinObjectAreaRatio; }
+    int getNeonJoinSize() const { return neonJoinSize; }
+    bool getNeonPerContour() const { return neonPerContour; }
+    bool getNeonKMeansEnabled() const { return neonKMeansEnabled; }
+    int getNeonKMeansK() const { return neonKMeansK; }
+    float getNeonKMeansNearDistancePx() const { return neonKMeansNearDistancePx; }
 
     double getCannyThreshold1() const { return cannyThreshold1; }
     double getCannyThreshold2() const { return cannyThreshold2; }
@@ -107,6 +121,13 @@ private:
     cv::Scalar neonEdgeColor = cv::Scalar(0, 0, 255);       // Red (BGR)
     int neonGlowStrength = 3;   // Number of glow layers
     int neonGlowSize = 15;      // Blur size for glow
+    int neonMaxObjects = 8;      // Color only the largest N objects
+    float neonMinObjectAreaRatio = 0.01f; // Minimum object area as fraction of image (e.g. 0.01 = 1%)
+    int neonJoinSize = 15;       // Kernel size used to connect edges into objects (odd recommended)
+    bool neonPerContour = true;  // If true, every contour gets a unique color (ignores object grouping)
+    bool neonKMeansEnabled = false; // If true, k-means clusters contour centroids into groups
+    int neonKMeansK = 24;           // Initial K for k-means (final groups may be larger)
+    float neonKMeansNearDistancePx = 25.0f; // Only keep k-means grouping when members are within this distance to their center
 
     void detectEdges();
     void findContours();

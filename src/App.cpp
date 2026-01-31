@@ -309,20 +309,48 @@ void App::processFrame() {
         ImGui::Separator();
         ImGui::Text("Neon Effect Settings");
 
-        static float neonCenterColor[3] = {1.0f, 0.0f, 1.0f};  // Magenta
-        if (ImGui::ColorEdit3("Neon Center", neonCenterColor)) {
-            imageProcessor->setNeonCenterColor(neonCenterColor[0], neonCenterColor[1], neonCenterColor[2]);
+        bool perContour = imageProcessor->getNeonPerContour();
+        if (ImGui::Checkbox("Per-Contour Colors", &perContour)) {
+            imageProcessor->setNeonPerContour(perContour);
             imageProcessor->processImage();
         }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("When enabled, every contour gets a unique color (no object grouping)");
+        }
 
-        static float neonOtherColor[3] = {0.0f, 1.0f, 1.0f};   // Cyan
-        if (ImGui::ColorEdit3("Neon Other", neonOtherColor)) {
-            imageProcessor->setNeonOtherColor(neonOtherColor[0], neonOtherColor[1], neonOtherColor[2]);
-            imageProcessor->processImage();
+        if (perContour) {
+            bool kmeansEnabled = imageProcessor->getNeonKMeansEnabled();
+            if (ImGui::Checkbox("Group Nearby (K-Means)", &kmeansEnabled)) {
+                imageProcessor->setNeonKMeansEnabled(kmeansEnabled);
+                imageProcessor->processImage();
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Run k-means on contour centroids, but only keep groups when they are very close");
+            }
+
+            if (kmeansEnabled) {
+                int k = imageProcessor->getNeonKMeansK();
+                if (ImGui::SliderInt("K-Means K", &k, 1, 128)) {
+                    imageProcessor->setNeonKMeansK(k);
+                    imageProcessor->processImage();
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Higher K reduces forced merging of far contours");
+                }
+
+                float nearPx = imageProcessor->getNeonKMeansNearDistancePx();
+                if (ImGui::SliderFloat("Near Distance (px)", &nearPx, 1.0f, 200.0f, "%.1f")) {
+                    imageProcessor->setNeonKMeansNearDistancePx(nearPx);
+                    imageProcessor->processImage();
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Only contours within this distance of their cluster center stay grouped");
+                }
+            }
         }
 
         static float neonEdgeColor[3] = {1.0f, 0.0f, 0.0f};    // Red
-        if (ImGui::ColorEdit3("Neon Edges", neonEdgeColor)) {
+        if (ImGui::ColorEdit3("Background Edges", neonEdgeColor)) {
             imageProcessor->setNeonEdgeColor(neonEdgeColor[0], neonEdgeColor[1], neonEdgeColor[2]);
             imageProcessor->processImage();
         }
@@ -334,9 +362,38 @@ void App::processFrame() {
         }
 
         int glowSize = imageProcessor->getNeonGlowSize();
-        if (ImGui::SliderInt("Glow Size", &glowSize, 5, 51)) {
+        if (ImGui::SliderInt("Glow Size", &glowSize, 1, 31)) {
             imageProcessor->setNeonGlowSize(glowSize);
             imageProcessor->processImage();
+        }
+
+        if (!perContour) {
+            int maxObjects = imageProcessor->getNeonMaxObjects();
+            if (ImGui::SliderInt("Main Objects", &maxObjects, 1, 12)) {
+                imageProcessor->setNeonMaxObjects(maxObjects);
+                imageProcessor->processImage();
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Color only the largest N objects; everything else becomes background");
+            }
+
+            float minAreaRatio = imageProcessor->getNeonMinObjectAreaRatio();
+            if (ImGui::SliderFloat("Min Object Area", &minAreaRatio, 0.001f, 0.10f, "%.3f")) {
+                imageProcessor->setNeonMinObjectAreaRatio(minAreaRatio);
+                imageProcessor->processImage();
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Minimum object size as a fraction of the image (higher removes small clutter)");
+            }
+
+            int joinSize = imageProcessor->getNeonJoinSize();
+            if (ImGui::SliderInt("Object Join", &joinSize, 3, 51)) {
+                imageProcessor->setNeonJoinSize(joinSize);
+                imageProcessor->processImage();
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Connect nearby edges into one object (too high can merge everything)");
+            }
         }
 
         ImGui::Separator();

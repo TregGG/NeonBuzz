@@ -39,12 +39,20 @@ The **Image Contour Renderer** is a real-time image processing application that 
 
 - **Real-time edge detection** using Canny algorithm
 - **Contour extraction and filtering** with adjustable parameters
-- **Artistic brush stroke rendering** that follows edge directions
+- **Artistic brush stroke rendering** with density-adaptive edge following
 - **Multiple noise reduction techniques** (Gaussian blur, bilateral filter, morphological operations)
 - **Edge smoothing algorithms** (dilation, thinning, blur)
 - **5 display modes**: Original, Edges, Contours, Brush Strokes, Combined
 - **Interactive parameter adjustment** via ImGui interface
 - **Cross-platform support** (Linux, Windows, macOS)
+
+### Brush Stroke Algorithm Highlights
+
+The brush stroke rendering uses a sophisticated density-adaptive approach:
+- **Tight edge following**: Strokes deviate only 0.5°-5° from edge tangent direction
+- **Density-aware skipping**: Areas with many edges (eyes, hair) automatically skip strokes to prevent over-saturation
+- **Uniform brightness**: Stroke brightness adjusts based on local density for consistent appearance
+- **Multi-layer rendering**: Main contour strokes + secondary texture strokes + edge pixel strokes
 
 ---
 
@@ -568,7 +576,13 @@ void ImageProcessor::findContours() {
 
 **Function**: `ImageProcessor::createBrushStrokes()`
 
-This is the most complex function that creates artistic brush stroke renderings.
+This is the most complex function that creates artistic brush stroke renderings with density-adaptive edge following.
+
+#### Design Philosophy
+
+The brush stroke algorithm balances two goals:
+1. **Edge fidelity**: Strokes should closely follow detected edges for recognizable results
+2. **Artistic quality**: Subtle variations give a hand-drawn appearance without being too random
 
 #### Step 1: Compute Gradient Direction
 
@@ -595,50 +609,59 @@ edgeDensity.convertTo(edgeDensity, CV_32F,
                       -minDensity / (maxDensity - minDensity));
 ```
 
-The density map tells us how "busy" each area is, used to:
-- Skip strokes in cluttered areas (prevent over-drawing)
-- Adjust stroke angle variation
+The density map measures edge concentration in each local region:
+- **High density** (eyes, hair, detailed areas): More edges packed together
+- **Low density** (simple contours, backgrounds): Sparse edge distribution
+
+This map controls:
+- **Stroke skipping**: Prevent over-saturation in busy areas
+- **Angle variation**: Tighter edge following in complex regions
+- **Brightness adjustment**: Uniform appearance across all areas
 
 #### Step 3: Draw Main Strokes Along Contours
 
 ```cpp
+// Tight angle constraints for edge-following
+const float maxAngleOffset = 5.0f * CV_PI / 180.0f;   // Max 5 degrees
+const float minAngleOffset = 0.5f * CV_PI / 180.0f;   // Min 0.5 degrees
+
 for (const auto& contour : contours) {
     for (size_t i = 0; i < contour.size() - 1; i++) {
         cv::Point pt1 = contour[i];
         cv::Point pt2 = contour[(i + 1) % contour.size()];
         
-        // Get local density
+        // Get local density at this point
         float density = edgeDensity.at<float>(pt1.y, pt1.x);
         
-        // Skip strokes probabilistically based on density (up to 70%)
+        // Density-adaptive skip: up to 70% skip in dense areas
         float skipProbability = density * 0.7f;
         if (skipDist(gen) < skipProbability) continue;
         
         // Calculate tangent direction from contour segment
         float tangentAngle = atan2(pt2.y - pt1.y, pt2.x - pt1.x);
         
-        // Add small random angle offset (0.5° to 5° based on density)
+        // Small angle offset for brush effect (density-adaptive)
+        float angleRange = std::max(minAngleOffset, 
+            maxAngleOffset - (density * (maxAngleOffset - minAngleOffset)));
         float angleOffset = angleOffsetDist(gen) * (signDist(gen) ? 1 : -1);
         float strokeAngle = tangentAngle + angleOffset;
         
-        // Calculate stroke with slight length extension (1.1x)
+        // Stroke length with 10% extension for overlap
         float strokeLen = sqrt(pow(pt2.x - pt1.x, 2) + pow(pt2.y - pt1.y, 2)) * 1.1f;
         
-        // Apply small position jitter (-1 to +1 pixels)
+        // Minimal position jitter (-1 to +1 pixels)
         int offset_x = offsetDist(gen);
         int offset_y = offsetDist(gen);
         
-        // Compute endpoint
         cv::Point strokePt1(pt1.x + offset_x, pt1.y + offset_y);
         cv::Point strokePt2(
             pt1.x + offset_x + static_cast<int>(strokeLen * cos(strokeAngle)),
             pt1.y + offset_y + static_cast<int>(strokeLen * sin(strokeAngle))
         );
         
-        // Brightness varies with density (less dense = brighter, 220-255)
-        int grayVal = 220 + (1.0f - density) * 35;
+        // Brightness: 220-255, slightly darker in dense areas
+        int baseGray = 220 + static_cast<int>((1.0f - density) * 35);
         
-        // Draw anti-aliased line
         cv::line(brushStrokeImage, strokePt1, strokePt2, 
                  cv::Scalar(grayVal, grayVal, grayVal), 
                  brushSize, cv::LINE_AA);
@@ -646,21 +669,26 @@ for (const auto& contour : contours) {
 }
 ```
 
+Key improvements over random stroke approaches:
+- **Tight angle bounds** (0.5°-5°): Strokes closely follow edges
+- **Density-adaptive skip**: Prevents over-drawing in complex areas
+- **Consistent brightness**: No blown-out white regions
+```
+
 #### Step 4: Draw Secondary Sketch Lines
 
 ```cpp
 if (brushDensity < 15) {
     for (size_t i = 0; i < contour.size() - 1; i += 3) {
-        // Similar process but:
-        // - Every 3rd point (sparser)
-        // - Thinner strokes (brushSize - 1)
-        // - Slightly different angle calculation
-        // - Higher skip probability (80% in dense areas)
+        // Every 3rd contour point for sparser coverage
+        // Higher skip probability (80% in dense areas)
+        // Thinner strokes (brushSize - 1)
+        // Same tight angle constraints
     }
 }
 ```
 
-Secondary strokes add texture and sketchy quality.
+Secondary strokes add subtle texture without overwhelming the image.
 
 #### Step 5: Draw Strokes on Individual Edge Pixels
 
@@ -668,6 +696,11 @@ Secondary strokes add texture and sketchy quality.
 for (int y = 1; y < edgeImage.rows - 1; y++) {
     for (int x = 1; x < edgeImage.cols - 1; x++) {
         if (edgeImage.at<uchar>(y, x) > 128) {
+            // Get local density for skip decision (75% in dense areas)
+            float density = edgeDensity.at<float>(y, x);
+            float skipProbability = density * 0.75f;
+            if (skipDist(gen) < skipProbability) continue;
+            
             // Get gradient direction at this pixel
             float gx = gradX.at<float>(y, x);
             float gy = gradY.at<float>(y, x);
@@ -676,15 +709,19 @@ for (int y = 1; y < edgeImage.rows - 1; y++) {
             float gradientAngle = atan2(gy, gx);
             float tangentAngle = gradientAngle + CV_PI / 2.0;
             
+            // Apply same tight angle constraints (0.5°-5°)
+            float angleOffset = angleOffsetDist(gen) * (signDist(gen) ? 1 : -1);
+            float strokeAngle = tangentAngle + angleOffset;
+            
             // Draw short stroke along edge direction
             int strokeLen = brushSize * 2;
-            // ... (similar drawing logic)
+            // Consistent brightness (210-255 based on density)
         }
     }
 }
 ```
 
-This adds fine detail strokes following individual edge pixels.
+This adds fine detail strokes following individual edge pixels, filling gaps between contour-based strokes.
 
 ---
 

@@ -10,7 +10,7 @@ An OpenGL-based real-time image processing application that transforms photograp
 
 - **Real-time Edge Detection** - Canny edge detection with adjustable thresholds
 - **Contour Extraction** - Automatic contour detection with area and length filtering
-- **Artistic Brush Strokes** - Stylized brush stroke rendering that follows edge directions
+- **Artistic Brush Strokes** - Stylized brush stroke rendering with density-adaptive edge following
 - **Multiple Display Modes**:
   - Original Image
   - Edge Detection View
@@ -167,6 +167,11 @@ The project includes VS Code tasks for convenient building:
 | **Brush Size** | 1-15 | Base stroke thickness |
 | **Brush Density** | 1-20 | Controls secondary stroke frequency |
 
+The brush stroke algorithm uses:
+- **Density-adaptive rendering**: High-density edge areas (like eyes, hair) have fewer strokes to prevent over-saturation
+- **Edge-following strokes**: Strokes follow edge tangent direction with minimal angle variation (0.5°-5°)
+- **Consistent brightness**: Stroke brightness is adjusted based on local edge density for uniform appearance
+
 ### Stroke Settings
 
 | Parameter | Description |
@@ -205,7 +210,10 @@ ImageContourRenderer/
 2. **Edge Detection**: Canny algorithm with configurable thresholds detects edges
 3. **Noise Reduction**: Gaussian or bilateral blur smooths noise before edge detection
 4. **Contour Finding**: OpenCV extracts contours from edge map, filtered by area/length
-5. **Brush Strokes**: Artistic strokes are drawn following edge directions with randomized parameters
+5. **Brush Strokes**: Artistic strokes follow edge directions with density-adaptive rendering:
+   - Strokes closely follow edge tangent direction (0.5°-5° variation)
+   - High-density areas (eyes, hair) automatically skip strokes to prevent over-saturation
+   - Brightness adjusts based on local density for uniform appearance
 6. **Rendering**: OpenGL renders the result as a textured quad via ImGui viewport
 
 For complete technical details, see [Working.md](Working.md).

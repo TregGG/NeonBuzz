@@ -2,6 +2,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 
 const char* vertexShaderSource = R"(
@@ -198,10 +200,55 @@ void Renderer::renderContours(const cv::Mat& image, const std::vector<std::vecto
 
     cv::Mat displayImage = image.clone();
 
-    // Draw contours on the image
-    cv::drawContours(displayImage, contours, -1, 
-                     cv::Scalar(0, 255, 0), 
-                     static_cast<int>(strokeWidth));
+    auto hsvToRgb = [](float hDeg, float s, float v) -> cv::Scalar {
+        hDeg = std::fmod(hDeg, 360.0f);
+        if (hDeg < 0.0f) hDeg += 360.0f;
+        s = std::clamp(s, 0.0f, 1.0f);
+        v = std::clamp(v, 0.0f, 1.0f);
+
+        float c = v * s;
+        float x = c * (1.0f - std::fabs(std::fmod(hDeg / 60.0f, 2.0f) - 1.0f));
+        float m = v - c;
+
+        float r1 = 0.0f, g1 = 0.0f, b1 = 0.0f;
+        if (hDeg < 60.0f) {
+            r1 = c;
+            g1 = x;
+            b1 = 0.0f;
+        } else if (hDeg < 120.0f) {
+            r1 = x;
+            g1 = c;
+            b1 = 0.0f;
+        } else if (hDeg < 180.0f) {
+            r1 = 0.0f;
+            g1 = c;
+            b1 = x;
+        } else if (hDeg < 240.0f) {
+            r1 = 0.0f;
+            g1 = x;
+            b1 = c;
+        } else if (hDeg < 300.0f) {
+            r1 = x;
+            g1 = 0.0f;
+            b1 = c;
+        } else {
+            r1 = c;
+            g1 = 0.0f;
+            b1 = x;
+        }
+
+        uint8_t r = static_cast<uint8_t>(std::round((r1 + m) * 255.0f));
+        uint8_t g = static_cast<uint8_t>(std::round((g1 + m) * 255.0f));
+        uint8_t b = static_cast<uint8_t>(std::round((b1 + m) * 255.0f));
+        return cv::Scalar(r, g, b);
+    };
+
+    const int thickness = std::max(1, static_cast<int>(strokeWidth));
+    for (size_t i = 0; i < contours.size(); ++i) {
+        float hue = std::fmod(137.508f * static_cast<float>(i), 360.0f);
+        cv::Scalar color = hsvToRgb(hue, 0.95f, 1.0f);
+        cv::drawContours(displayImage, contours, static_cast<int>(i), color, thickness, cv::LINE_AA);
+    }
 
     renderImage(displayImage);
 }
