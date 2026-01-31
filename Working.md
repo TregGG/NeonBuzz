@@ -1,4 +1,4 @@
-# Image Contour Renderer - Complete Technical Documentation
+# NeonBuzz - Complete Technical Documentation
 
 ## Table of Contents
 
@@ -33,7 +33,7 @@
 
 ## Project Overview
 
-The **Image Contour Renderer** is a real-time image processing application that transforms photographs into artistic contour and brush stroke renderings. It combines computer vision algorithms with GPU-accelerated rendering to provide an interactive tool for edge detection, contour extraction, and stylized brush stroke generation.
+**NeonBuzz** is a real-time image processing application that transforms photographs into artistic contour and brush stroke renderings. It combines computer vision algorithms with GPU-accelerated rendering to provide an interactive tool for edge detection, contour extraction, and stylized brush stroke generation.
 
 ### Key Features
 
@@ -173,7 +173,7 @@ private:
    - Force X11 platform on Linux (for GLEW compatibility with Wayland)
    - Initialize GLFW
    - Create OpenGL 4.1 Core Profile context
-   - Create window with title "Image Contour Renderer"
+   - Create window with title "NeonBuzz"
    - Initialize GLEW for OpenGL extension loading
    - Set up window callbacks (close, resize)
    - Initialize viewport and clear color
@@ -904,7 +904,7 @@ char* selectedFile = tinyfd_openFileDialog(
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
-project(ImageContourRenderer)
+project(NeonBuzz)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -916,7 +916,7 @@ find_package(glfw3 REQUIRED)
 find_package(GLEW REQUIRED)
 
 # Link everything
-target_link_libraries(ImageContourRenderer PRIVATE 
+target_link_libraries(NeonBuzz PRIVATE 
     OpenGL::OpenGL
     glfw
     GLEW::GLEW
@@ -934,7 +934,7 @@ cmake -B build -S .
 make -C build -j$(nproc)
 
 # Run
-./build/ImageContourRenderer [optional_image_path]
+./build/NeonBuzz [optional_image_path]
 ```
 
 ---

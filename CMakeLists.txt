@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ImageContourRenderer)
+project(NeonBuzz)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -43,10 +43,10 @@ set(INCLUDE_DIRS
 )
 
 # Create executable
-add_executable(ImageContourRenderer ${SOURCES})
+add_executable(NeonBuzz ${SOURCES})
 
-target_include_directories(ImageContourRenderer PRIVATE ${INCLUDE_DIRS})
-target_link_libraries(ImageContourRenderer PRIVATE 
+target_include_directories(NeonBuzz PRIVATE ${INCLUDE_DIRS})
+target_link_libraries(NeonBuzz PRIVATE 
     OpenGL::OpenGL
     glfw
     GLEW::GLEW
@@ -54,7 +54,7 @@ target_link_libraries(ImageContourRenderer PRIVATE
 )
 
 # Copy assets to build directory
-add_custom_command(TARGET ImageContourRenderer POST_BUILD
+add_custom_command(TARGET NeonBuzz POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/assets
     ${CMAKE_BINARY_DIR}/assets

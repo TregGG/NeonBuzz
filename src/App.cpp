@@ -42,7 +42,7 @@ void App::initOpenGL() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(windowWidth, windowHeight, "Image Contour Renderer", nullptr, nullptr);
+    window = glfwCreateWindow(windowWidth, windowHeight, "NeonBuzz", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         throw std::runtime_error("Failed to create GLFW window");
@@ -134,7 +134,7 @@ void App::processFrame() {
     ImGui::SetNextWindowSize(ImVec2(300, 400), ImGuiCond_FirstUseEver);
     ImGui::Begin("Controls", nullptr);
 
-    ImGui::Text("Image Contour Renderer");
+    ImGui::Text("NeonBuzz");
     ImGui::Separator();
 
     // File browser / load image

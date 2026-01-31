@@ -1,7 +1,7 @@
-# Image Contour Renderer
+# NeonBuzz
 
 <p align="center">
-  <img src="assets/preview.png" alt="Image Contour Renderer Preview" width="800">
+  <img src="assets/preview.png" alt="NeonBuzz Preview" width="800">
 </p>
 
 An OpenGL-based real-time image processing application that transforms photographs into artistic contour and brush stroke renderings. Features interactive parameter adjustment, multiple display modes, and advanced noise reduction algorithms.
@@ -80,8 +80,8 @@ brew install cmake glfw glew opencv
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/ImageContourRenderer.git
-cd ImageContourRenderer
+git clone https://github.com/yourusername/NeonBuzz.git
+cd NeonBuzz
 ```
 
 ### Build with CMake
@@ -108,10 +108,10 @@ The project includes VS Code tasks for convenient building:
 
 ```bash
 # Run without arguments (use file browser to load images)
-./build/ImageContourRenderer
+./build/NeonBuzz
 
 # Load an image directly
-./build/ImageContourRenderer path/to/your/image.jpg
+./build/NeonBuzz path/to/your/image.jpg
 ```
 
 ### Supported Image Formats
@@ -182,7 +182,7 @@ The brush stroke algorithm uses:
 ## 📐 Project Structure
 
 ```
-ImageContourRenderer/
+NeonBuzz/
 ├── CMakeLists.txt          # Build configuration
 ├── README.md               # This file
 ├── Working.md              # Detailed technical documentation

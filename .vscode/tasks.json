@@ -39,7 +39,7 @@
         {
             "label": "Build & Run",
             "type": "shell",
-            "command": "./build/ImageContourRenderer",
+            "command": "./build/NeonBuzz",
             "dependsOn": "Compile",
             "group": {
                 "kind": "test"

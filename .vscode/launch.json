@@ -5,7 +5,7 @@
             "name": "Debug with GDB",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/ImageContourRenderer",
+            "program": "${workspaceFolder}/build/NeonBuzz",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

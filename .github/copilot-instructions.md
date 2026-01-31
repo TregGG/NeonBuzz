@@ -1,7 +1,7 @@
 # Project Setup Checklist
 
 - [x] Verify that the copilot-instructions.md file in the .github directory is created.
-- [x] Clarify Project Requirements - OpenGL + ImGui image contour renderer with edge detection
+- [x] Clarify Project Requirements - OpenGL + ImGui NeonBuzz with edge detection and brush strokes
 - [x] Scaffold the Project - Project structure created with CMake, source files organized
 - [x] Customize the Project - All source files implemented (App, ImageProcessor, Renderer)
 - [x] Install Required Extensions - Ready for C++ extension in VS Code
