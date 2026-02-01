@@ -4,19 +4,21 @@
   <img src="assets/preview.png" alt="NeonBuzz Preview" width="800">
 </p>
 
-An OpenGL-based real-time image processing application that transforms photographs into artistic contour and brush stroke renderings. Features interactive parameter adjustment, multiple display modes, and advanced noise reduction algorithms.
+An OpenGL-based real-time image processing application that transforms photographs into artistic contour, brush stroke, and neon glow renderings. Features interactive parameter adjustment, multiple display modes, and advanced noise reduction algorithms.
 
 ## ✨ Features
 
 - **Real-time Edge Detection** - Canny edge detection with adjustable thresholds
 - **Contour Extraction** - Automatic contour detection with area and length filtering
 - **Artistic Brush Strokes** - Stylized brush stroke rendering with density-adaptive edge following
+- **Neon Glow Effect** - Colorful neon rendering with per-contour or object-based coloring
 - **Multiple Display Modes**:
   - Original Image
   - Edge Detection View
   - Contour Overlay
   - Brush Strokes
   - Combined View
+  - Neon Effect
 - **Advanced Noise Reduction**:
   - Gaussian Blur
   - Bilateral Filter (edge-preserving)
@@ -36,6 +38,7 @@ An OpenGL-based real-time image processing application that transforms photograp
 | **Contours** | Shows detected contours overlaid on the image |
 | **Brush Strokes** | Artistic brush stroke rendering on black background |
 | **Combined** | Brush strokes with contour lines overlaid |
+| **Neon** | Colorful neon glow effect with multi-colored contours |
 
 ## 🛠️ Requirements
 
@@ -178,6 +181,25 @@ The brush stroke algorithm uses:
 |-----------|-------------|
 | **Stroke Color** | RGBA color picker for contour lines |
 | **Stroke Width** | Line width for contour rendering |
+
+### Neon Effect Settings
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| **Per-Contour Colors** | On/Off | When enabled, each contour gets a unique rainbow color |
+| **Group Nearby (K-Means)** | On/Off | Clusters nearby contours to share colors |
+| **K-Means K** | 1-128 | Number of color clusters (higher = more color variety) |
+| **Near Distance (px)** | 1-200 | Max distance for contours to share cluster colors |
+| **Background Edges** | Color | Color for non-main object edges |
+| **Glow Layers** | 1-5 | Number of glow layers (more = stronger glow) |
+| **Glow Size** | 1-31 | Blur radius for glow effect |
+| **Main Objects** | 1-12 | Number of main colored objects (rest become background) |
+| **Min Object Area** | 0.001-0.10 | Minimum object size ratio (filters small noise) |
+| **Object Join** | 3-51 | Morphological join size to connect nearby edges |
+
+The neon effect offers two modes:
+- **Per-Contour Mode**: Every contour gets a unique color from a rainbow palette, with optional K-Means clustering to group nearby contours
+- **Object Mode**: Groups contours into objects using morphological operations, colors the N largest objects uniquely
 
 ## 📐 Project Structure
 

@@ -16,6 +16,7 @@
    - [Edge Smoothing](#edge-smoothing)
    - [Contour Detection](#contour-detection)
    - [Brush Stroke Generation](#brush-stroke-generation)
+   - [Neon Effect Generation](#neon-effect-generation)
 5. [Rendering System](#rendering-system)
    - [OpenGL Setup](#opengl-setup)
    - [Shader System](#shader-system)
@@ -33,16 +34,18 @@
 
 ## Project Overview
 
-**NeonBuzz** is a real-time image processing application that transforms photographs into artistic contour and brush stroke renderings. It combines computer vision algorithms with GPU-accelerated rendering to provide an interactive tool for edge detection, contour extraction, and stylized brush stroke generation.
+**NeonBuzz** is a real-time image processing application that transforms photographs into artistic contour, brush stroke, and neon glow renderings. It combines computer vision algorithms with GPU-accelerated rendering to provide an interactive tool for edge detection, contour extraction, stylized brush stroke generation, and vibrant neon effects.
 
 ### Key Features
 
 - **Real-time edge detection** using Canny algorithm
 - **Contour extraction and filtering** with adjustable parameters
 - **Artistic brush stroke rendering** with density-adaptive edge following
+- **Neon glow effect** with per-contour or object-based coloring
 - **Multiple noise reduction techniques** (Gaussian blur, bilateral filter, morphological operations)
 - **Edge smoothing algorithms** (dilation, thinning, blur)
-- **5 display modes**: Original, Edges, Contours, Brush Strokes, Combined
+- **6 display modes**: Original, Edges, Contours, Brush Strokes, Combined, Neon
+- **Save functionality** with native file browser
 - **Interactive parameter adjustment** via ImGui interface
 - **Cross-platform support** (Linux, Windows, macOS)
 
@@ -53,6 +56,15 @@ The brush stroke rendering uses a sophisticated density-adaptive approach:
 - **Density-aware skipping**: Areas with many edges (eyes, hair) automatically skip strokes to prevent over-saturation
 - **Uniform brightness**: Stroke brightness adjusts based on local density for consistent appearance
 - **Multi-layer rendering**: Main contour strokes + secondary texture strokes + edge pixel strokes
+
+### Neon Effect Highlights
+
+The neon glow rendering provides vibrant, colorful edge visualization:
+- **Two coloring modes**: Per-contour rainbow colors or object-based grouping
+- **K-Means clustering**: Optional spatial clustering to group nearby contours with same color
+- **Near distance filtering**: Prevents distant contours from being incorrectly grouped
+- **Multi-layer glow**: Configurable glow strength and blur radius for authentic neon look
+- **Object detection**: Morphological operations to identify main objects in the scene
 
 ---
 
@@ -722,6 +734,145 @@ for (int y = 1; y < edgeImage.rows - 1; y++) {
 ```
 
 This adds fine detail strokes following individual edge pixels, filling gaps between contour-based strokes.
+
+### Neon Effect Generation
+
+**Function**: `ImageProcessor::createNeonEffect()`
+
+The neon effect creates vibrant, glowing edge visualizations with multiple coloring strategies.
+
+#### Overview
+
+The neon effect supports two main modes:
+1. **Per-Contour Mode**: Each contour gets a unique color from a rainbow palette
+2. **Object Mode**: Contours are grouped into objects, with the N largest objects colored uniquely
+
+#### Step 1: Generate Rainbow Color Palette
+
+```cpp
+std::vector<cv::Scalar> generateRainbowPalette(int count) {
+    std::vector<cv::Scalar> palette;
+    for (int i = 0; i < count; i++) {
+        float hue = (float)i / count * 180.0f;  // OpenCV uses 0-180 for hue
+        cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(hue, 255, 255));
+        cv::Mat bgr;
+        cv::cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
+        palette.push_back(cv::Scalar(bgr.at<cv::Vec3b>(0,0)));
+    }
+    return palette;
+}
+```
+
+Creates evenly-spaced colors across the spectrum for visually distinct contour coloring.
+
+#### Step 2a: Per-Contour Coloring (with optional K-Means)
+
+When `neonPerContour` is enabled:
+
+```cpp
+if (neonKMeansEnabled) {
+    // Calculate centroid of each contour
+    std::vector<cv::Point2f> centroids;
+    for (const auto& contour : contours) {
+        cv::Moments m = cv::moments(contour);
+        centroids.push_back(cv::Point2f(m.m10/m.m00, m.m01/m.m00));
+    }
+    
+    // Run K-Means clustering on centroids
+    cv::Mat labels, centers;
+    cv::kmeans(centroids, neonKMeansK, labels, 
+               cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10, 1.0),
+               3, cv::KMEANS_PP_CENTERS, centers);
+    
+    // Apply near-distance filter
+    for (int i = 0; i < contours.size(); i++) {
+        float distToCenter = cv::norm(centroids[i] - centers.at<cv::Point2f>(labels.at<int>(i)));
+        if (distToCenter > neonKMeansNearDistancePx) {
+            // Too far from cluster - give unique color
+            contourColors[i] = uniqueColor++;
+        } else {
+            // Close enough - use cluster color
+            contourColors[i] = labels.at<int>(i);
+        }
+    }
+}
+```
+
+**K-Means clustering** groups contours by spatial proximity:
+- Contours near each other share the same color
+- `neonKMeansK` controls how many color groups exist
+- `neonKMeansNearDistancePx` prevents distant contours from being incorrectly grouped
+
+#### Step 2b: Object-Based Coloring
+
+When `neonPerContour` is disabled, contours are grouped into objects:
+
+```cpp
+// Create a mask from all edges
+cv::Mat objectMask = edgeImage.clone();
+
+// Dilate to connect nearby edges into objects
+cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, 
+                                            cv::Size(neonJoinSize, neonJoinSize));
+cv::dilate(objectMask, objectMask, kernel);
+
+// Find connected components (objects)
+cv::Mat labels;
+int numObjects = cv::connectedComponents(objectMask, labels);
+
+// Sort objects by area, keep only the N largest
+// Assign unique colors to main objects, background color to the rest
+```
+
+This mode:
+- Uses morphological dilation to merge nearby edges
+- Identifies distinct objects via connected component analysis
+- Colors only the `neonMaxObjects` largest objects
+- Applies `neonMinObjectAreaRatio` to filter noise
+
+#### Step 3: Draw Glowing Contours
+
+```cpp
+for (int layer = neonGlowStrength; layer >= 0; layer--) {
+    float alpha = 1.0f / (layer + 1);  // Outer layers are more transparent
+    int thickness = 1 + layer * 2;      // Outer layers are thicker
+    
+    for (int i = 0; i < contours.size(); i++) {
+        cv::Scalar color = palette[contourColors[i] % palette.size()];
+        cv::Scalar glowColor = color * alpha;  // Fade for glow effect
+        cv::drawContours(neonImage, contours, i, glowColor, thickness, cv::LINE_AA);
+    }
+}
+
+// Apply Gaussian blur for glow
+cv::GaussianBlur(neonImage, neonImage, cv::Size(neonGlowSize, neonGlowSize), 0);
+
+// Draw sharp core on top
+for (int i = 0; i < contours.size(); i++) {
+    cv::Scalar color = palette[contourColors[i] % palette.size()];
+    cv::drawContours(neonImage, contours, i, color, 1, cv::LINE_AA);
+}
+```
+
+The glow effect is created by:
+1. Drawing multiple layers of decreasing opacity and increasing thickness
+2. Applying Gaussian blur to create the soft glow
+3. Drawing the sharp, bright core line on top
+
+#### Neon Parameters Reference
+
+| Parameter | Description |
+|-----------|-------------|
+| `neonPerContour` | Enable per-contour rainbow coloring |
+| `neonKMeansEnabled` | Enable K-Means clustering for contour grouping |
+| `neonKMeansK` | Number of K-Means clusters |
+| `neonKMeansNearDistancePx` | Max distance for contours to stay in cluster |
+| `neonEdgeColor` | Color for background/non-main edges |
+| `neonGlowStrength` | Number of glow layers (1-5) |
+| `neonGlowSize` | Gaussian blur kernel size for glow |
+| `neonMaxObjects` | Maximum main objects to color (object mode) |
+| `neonMinObjectAreaRatio` | Minimum object area as ratio of image |
+| `neonJoinSize` | Morphological dilation size for object joining |
 
 ---
 
