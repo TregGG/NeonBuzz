@@ -2,6 +2,7 @@
 
 <p align="center">
   <img src="assets/preview.png" alt="NeonBuzz Preview" width="800">
+  <img src="assets/preview2.png" alt="NeonBuzz Preview" width="800">
 </p>
 
 An OpenGL-based real-time image processing application that transforms photographs into artistic contour, brush stroke, and neon glow renderings. Features interactive parameter adjustment, multiple display modes, and advanced noise reduction algorithms.
