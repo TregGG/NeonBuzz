@@ -35,6 +35,55 @@ bool ImageProcessor::loadImage(const std::string& filepath) {
     return true;
 }
 
+bool ImageProcessor::saveImage(const std::string& filepath, int displayMode) const {
+    cv::Mat imageToSave;
+    
+    // Select the appropriate image based on display mode
+    // 0: Original, 1: Edges, 2: Contours, 3: Brush Strokes, 4: Combined, 5: Neon
+    switch (displayMode) {
+        case 0: // Original
+            imageToSave = originalImage.clone();
+            break;
+        case 1: // Edges
+            cv::cvtColor(edgeImage, imageToSave, cv::COLOR_GRAY2BGR);
+            break;
+        case 2: // Contours
+            imageToSave = originalImage.clone();
+            cv::drawContours(imageToSave, contours, -1, cv::Scalar(255, 255, 255), 2);
+            break;
+        case 3: // Brush Strokes
+            imageToSave = brushStrokeImage.clone();
+            break;
+        case 4: // Combined
+            imageToSave = brushStrokeImage.clone();
+            cv::drawContours(imageToSave, contours, -1, cv::Scalar(255, 255, 255), 1);
+            break;
+        case 5: // Neon
+            imageToSave = neonImage.clone();
+            break;
+        default:
+            imageToSave = brushStrokeImage.clone();
+            break;
+    }
+    
+    if (imageToSave.empty()) {
+        std::cerr << "No image to save" << std::endl;
+        return false;
+    }
+    
+    // Convert RGB to BGR for OpenCV saving
+    if (imageToSave.channels() == 3) {
+        cv::cvtColor(imageToSave, imageToSave, cv::COLOR_RGB2BGR);
+    }
+    
+    // Save the image
+    bool success = cv::imwrite(filepath, imageToSave);
+    if (!success) {
+        std::cerr << "Failed to write image to: " << filepath << std::endl;
+    }
+    return success;
+}
+
 void ImageProcessor::processImage() {
     if (originalImage.empty()) {
         return;

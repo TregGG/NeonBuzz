@@ -161,6 +161,28 @@ void App::processFrame() {
     if (ImGui::Button("Load", ImVec2(-1, 0))) {
         loadImage(filepath);
     }
+    
+    // Save button
+    if (imageProcessor->hasImage()) {
+        if (ImGui::Button("Save Image...", ImVec2(-1, 0))) {
+            const char* saveFilterPatterns[] = { "*.png", "*.jpg", "*.bmp" };
+            char* savePath = tinyfd_saveFileDialog(
+                "Save Image As",
+                "output.png",
+                3,
+                saveFilterPatterns,
+                "Image Files (*.png, *.jpg, *.bmp)"
+            );
+            if (savePath) {
+                int currentDisplayMode = static_cast<int>(renderer->getDisplayMode());
+                if (imageProcessor->saveImage(savePath, currentDisplayMode)) {
+                    std::cout << "Image saved successfully: " << savePath << std::endl;
+                } else {
+                    std::cerr << "Failed to save image: " << savePath << std::endl;
+                }
+            }
+        }
+    }
 
     if (imageProcessor->hasImage()) {
         ImGui::Separator();

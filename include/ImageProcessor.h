@@ -11,6 +11,9 @@ public:
 
     // Load image from file
     bool loadImage(const std::string& filepath);
+    
+    // Save current view to file
+    bool saveImage(const std::string& filepath, int displayMode) const;
 
     // Process: detect edges and contours
     void processImage();
